@@ -1,0 +1,14 @@
+# Бинарники и архивы
+app
+*.tar.gz
+*.gzip
+
+# Node.js
+node_modules/
+dist/
+
+# Go
+/tmp/
+
+# Dev Container и системные файлы
+.DS_Store
