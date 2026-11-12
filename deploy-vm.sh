@@ -2,7 +2,7 @@
 set -e
 
 # === Настройки Nexus ===
-NEXUS_URL="http://93.77.166.24:8081"
+NEXUS_URL="http://153.51.118.157:8081"
 NEXUS_USER="student"
 NEXUS_PASS="1iRd|OjBGq9V"
 VERSION="latest"
