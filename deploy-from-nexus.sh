@@ -2,13 +2,13 @@
 set -e
 
 # === Настройки ===
-VM_IP="93.77.163.101"
+VM_IP="153.51.118.157"
 VM_USER="nuoton"
 SSH_KEY="$HOME/.ssh/ssh-key-1793340107510"
 REMOTE_DIR="/home/nuoton/app"
 
 # === Настройки Nexus ===
-NEXUS_URL="http://93.77.166.24:8081"
+NEXUS_URL="http://153.51.118.157:8081"
 NEXUS_USER="student"
 NEXUS_PASS="1iRd|OjBGq9V"
 VERSION="latest"
