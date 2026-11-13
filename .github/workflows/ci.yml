@@ -42,14 +42,13 @@ jobs:
       - name: Configure Docker for insecure registry
         run: |
           sudo mkdir -p /etc/docker
-          echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}:8081"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker
+          echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}"]}' | sudo tee /etc/docker/daemon.json
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Login to Nexus
-        run: echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login ${{ env.REGISTRY_NEXUS }} -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
+        run: echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login ${{ secrets.NEXUS_HOST }} -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
 
       - name: Build and Push Backend
         run: |
@@ -68,14 +67,14 @@ jobs:
             docker push ghcr.io/${{ github.repository_owner }}/sandbox-backend:latest
           fi
 
-          docker tag sandbox-backend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
-          docker tag sandbox-backend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
-          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
-          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
+          docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
+          docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
+          docker push ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
+          docker push ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
           
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker tag sandbox-backend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:latest
-            docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:latest
+            docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:latest
+            docker push ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:latest
           fi
 
   build-frontend:
@@ -90,14 +89,13 @@ jobs:
       - name: Configure Docker for insecure registry
         run: |
           sudo mkdir -p /etc/docker
-          echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}:8081"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker
+          echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}"]}' | sudo tee /etc/docker/daemon.json
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Login to Nexus
-        run: echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login ${{ env.REGISTRY_NEXUS }} -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
+        run: echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login ${{ secrets.NEXUS_HOST }} -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
 
       - name: Build and Push Frontend
         run: |
@@ -116,14 +114,14 @@ jobs:
             docker push ghcr.io/${{ github.repository_owner }}/sandbox-frontend:latest
           fi
 
-          docker tag sandbox-frontend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
-          docker tag sandbox-frontend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
-          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
-          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
+          docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
+          docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
+          docker push ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
+          docker push ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
           
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker tag sandbox-frontend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:latest
-            docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:latest
+            docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:latest
+            docker push ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:latest
           fi
 
   deploy:
@@ -145,7 +143,7 @@ jobs:
       - name: Prepare .env
         run: |
           echo "${{ secrets.APP_ENV_FILE }}" > .env
-          echo "IMAGE_REGISTRY=${{ env.REGISTRY_NEXUS }}" >> .env
+          echo "IMAGE_REGISTRY=${{ secrets.NEXUS_HOST }}" >> .env
           echo "IMAGE_TAG=${{ needs.version.outputs.version }}" >> .env
           echo "REPOSITORY_BACKEND=${{ env.NEXUS_REPO_BACKEND }}" >> .env
           echo "REPOSITORY_FRONTEND=${{ env.NEXUS_REPO_FRONTEND }}" >> .env
@@ -158,7 +156,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             cd ~/app
-            echo "${{ secrets.NEXUS_REPO_PASS }}" | sudo docker login ${{ env.REGISTRY_NEXUS }} -u "${{ secrets.NEXUS_REPO_USER }}" --password-stdin
+            echo "${{ secrets.NEXUS_REPO_PASS }}" | sudo docker login ${{ secrets.NEXUS_HOST }} -u "${{ secrets.NEXUS_REPO_USER }}" --password-stdin
             sudo docker compose pull
             sudo docker compose up -d --remove-orphans
           EOF
