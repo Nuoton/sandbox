@@ -1,0 +1,29 @@
+
+networks:
+  sandbox-net:
+    driver: bridge
+
+services:
+  backend:
+    image: sandbox-backend:latest
+    container_name: sandbox-backend
+    networks:
+      - sandbox-net
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    restart: always
+
+  frontend:
+    image: sandbox-frontend:latest
+    container_name: sandbox-frontend
+    networks:
+      - sandbox-net
+    ports:
+      - "8888:8888"
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    restart: always
