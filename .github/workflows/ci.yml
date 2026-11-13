@@ -43,8 +43,7 @@ jobs:
         run: |
           sudo mkdir -p /etc/docker
           echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker || sudo service docker restart || true
-          sleep 5
+          sudo systemctl restart docker
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -57,10 +56,8 @@ jobs:
           VERSION=${{ needs.version.outputs.version }}
           SHA_SHORT=${GITHUB_SHA::7}
           
-          # Сборка
           docker build -t sandbox-backend:$VERSION ./src/backend
           
-          # Пуш в GHCR (нижний регистр: nuoton)
           docker tag sandbox-backend:$VERSION ghcr.io/nuoton/sandbox-backend:$VERSION
           docker tag sandbox-backend:$VERSION ghcr.io/nuoton/sandbox-backend:sha-$SHA_SHORT
           docker push ghcr.io/nuoton/sandbox-backend:$VERSION
@@ -71,7 +68,6 @@ jobs:
             docker push ghcr.io/nuoton/sandbox-backend:latest
           fi
 
-          # Пуш в Nexus (Path-based routing: /repository/)
           docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
           docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
           docker push ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
@@ -95,8 +91,7 @@ jobs:
         run: |
           sudo mkdir -p /etc/docker
           echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker || sudo service docker restart || true
-          sleep 5
+          sudo systemctl restart docker
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -109,10 +104,8 @@ jobs:
           VERSION=${{ needs.version.outputs.version }}
           SHA_SHORT=${GITHUB_SHA::7}
           
-          # Сборка
           docker build -t sandbox-frontend:$VERSION ./src/frontend
           
-          # Пуш в GHCR (нижний регистр: nuoton)
           docker tag sandbox-frontend:$VERSION ghcr.io/nuoton/sandbox-frontend:$VERSION
           docker tag sandbox-frontend:$VERSION ghcr.io/nuoton/sandbox-frontend:sha-$SHA_SHORT
           docker push ghcr.io/nuoton/sandbox-frontend:$VERSION
@@ -123,7 +116,6 @@ jobs:
             docker push ghcr.io/nuoton/sandbox-frontend:latest
           fi
 
-          # Пуш в Nexus (Path-based routing: /repository/)
           docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
           docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
           docker push ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
