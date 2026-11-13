@@ -1,6 +1,7 @@
 services:
   backend:
-    image: ${IMAGE_REGISTRY}/${REPOSITORY_BACKEND}/sandbox-backend:${IMAGE_TAG}
+    # Добавлен /repository/
+    image: ${IMAGE_REGISTRY}/repository/${REPOSITORY_BACKEND}/sandbox-backend:${IMAGE_TAG}
     container_name: sandbox-backend
     networks:
       - sandbox-net
@@ -11,7 +12,8 @@ services:
     restart: always
 
   frontend:
-    image: ${IMAGE_REGISTRY}/${REPOSITORY_FRONTEND}/sandbox-frontend:${IMAGE_TAG}
+    # Добавлен /repository/
+    image: ${IMAGE_REGISTRY}/repository/${REPOSITORY_FRONTEND}/sandbox-frontend:${IMAGE_TAG}
     container_name: sandbox-frontend
     networks:
       - sandbox-net
