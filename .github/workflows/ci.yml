@@ -1,0 +1,156 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+    inputs:
+      VERSION:
+        description: "Версия для деплоя/отката (например, 20261111-101500). Пусто - новая."
+        required: false
+        type: string
+
+env:
+  REGISTRY_NEXUS: ${{ secrets.NEXUS_HOST }}
+  NEXUS_REPO_BACKEND: skorokhodov-backend-docker
+  NEXUS_REPO_FRONTEND: skorokhodov-frontend-docker
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Generate VERSION
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.VERSION }}" ]; then
+            echo "version=${{ github.event.inputs.VERSION }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          fi
+
+  build-backend:
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Login to Nexus
+        run: echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login ${{ env.REGISTRY_NEXUS }} -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
+
+      - name: Build and Push Backend
+        run: |
+          VERSION=${{ needs.version.outputs.version }}
+          SHA_SHORT=${GITHUB_SHA::7}
+          
+          # Собираем образ
+          docker build -t sandbox-backend:$VERSION ./src/backend
+          
+          # Тегируем для GHCR и пушим
+          docker tag sandbox-backend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-backend:$VERSION
+          docker tag sandbox-backend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-backend:sha-$SHA_SHORT
+          docker push ghcr.io/${{ github.repository_owner }}/sandbox-backend:$VERSION
+          docker push ghcr.io/${{ github.repository_owner }}/sandbox-backend:sha-$SHA_SHORT
+          
+          # Если ветка main, пушим latest
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag sandbox-backend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-backend:latest
+            docker push ghcr.io/${{ github.repository_owner }}/sandbox-backend:latest
+          fi
+
+          # Тегируем для Nexus и пушим
+          docker tag sandbox-backend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
+          docker tag sandbox-backend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
+          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
+          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
+          
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag sandbox-backend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:latest
+            docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:latest
+          fi
+
+  build-frontend:
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Login to Nexus
+        run: echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login ${{ env.REGISTRY_NEXUS }} -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
+
+      - name: Build and Push Frontend
+        run: |
+          VERSION=${{ needs.version.outputs.version }}
+          SHA_SHORT=${GITHUB_SHA::7}
+          
+          docker build -t sandbox-frontend:$VERSION ./src/frontend
+          
+          docker tag sandbox-frontend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-frontend:$VERSION
+          docker tag sandbox-frontend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-frontend:sha-$SHA_SHORT
+          docker push ghcr.io/${{ github.repository_owner }}/sandbox-frontend:$VERSION
+          docker push ghcr.io/${{ github.repository_owner }}/sandbox-frontend:sha-$SHA_SHORT
+          
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag sandbox-frontend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-frontend:latest
+            docker push ghcr.io/${{ github.repository_owner }}/sandbox-frontend:latest
+          fi
+
+          docker tag sandbox-frontend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
+          docker tag sandbox-frontend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
+          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
+          docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
+          
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag sandbox-frontend:$VERSION ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:latest
+            docker push ${{ env.REGISTRY_NEXUS }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:latest
+          fi
+
+  deploy:
+    needs: [version, build-backend, build-frontend]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.VM_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Prepare .env
+        run: |
+          echo "${{ secrets.APP_ENV_FILE }}" > .env
+          echo "IMAGE_REGISTRY=${{ env.REGISTRY_NEXUS }}" >> .env
+          echo "IMAGE_TAG=${{ needs.version.outputs.version }}" >> .env
+          echo "REPOSITORY_BACKEND=${{ env.NEXUS_REPO_BACKEND }}" >> .env
+          echo "REPOSITORY_FRONTEND=${{ env.NEXUS_REPO_FRONTEND }}" >> .env
+
+      - name: Copy files to VM
+        run: |
+          scp -i ~/.ssh/id_rsa docker-compose.yml .env deploy.sh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/app/
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            cd ~/app
+            echo "${{ secrets.NEXUS_REPO_PASS }}" | sudo docker login ${{ env.REGISTRY_NEXUS }} -u "${{ secrets.NEXUS_REPO_USER }}" --password-stdin
+            sudo docker compose pull
+            sudo docker compose up -d --remove-orphans
+          EOF
