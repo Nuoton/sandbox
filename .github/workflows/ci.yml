@@ -2,44 +2,96 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ["lab3"] 
+    branches: ["**"]
+  workflow_dispatch:
+    inputs:
+      VERSION:
+        description: "Версия для деплоя/отката (например, 20261113-101500). Пусто - новая."
+        required: false
+        type: string
 
 env:
-  VERSION: 1.0.${{ github.run_number }}
-  NEXUS_URL: "http://${{ secrets.NEXUS_HOST }}"
-  NEXUS_USER: ${{ secrets.NEXUS_REPO_USER }}
-  NEXUS_PASS: ${{ secrets.NEXUS_REPO_PASS }}
-  REPO_BACKEND: skorokhodov-backend-docker
-  REPO_FRONTEND: skorokhodov-frontend-docker
+  REGISTRY_GHCR: ghcr.io
+  REGISTRY_NEXUS: ${{ secrets.NEXUS_HOST }}
+  # Замените skorokhodov на вашу фамилию!
+  NEXUS_REPO_BACKEND: skorokhodov-backend-docker
+  NEXUS_REPO_FRONTEND: skorokhodov-frontend-docker
 
 jobs:
-  build-and-push:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Generate VERSION
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.VERSION }}" ]; then
+            echo "version=${{ github.event.inputs.VERSION }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker images
+      - name: Configure Docker for insecure registry
         run: |
-          docker build -t sandbox-backend:${{ env.VERSION }} ./src/backend
-          docker build -t sandbox-frontend:${{ env.VERSION }} ./src/frontend
+          sudo mkdir -p /etc/docker
+          echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker || true
 
-      - name: Save images to tar
-        run: |
-          docker save sandbox-backend:${{ env.VERSION }} -o backend.tar
-          docker save sandbox-frontend:${{ env.VERSION }} -o frontend.tar
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Upload to Nexus (Raw)
-        run: |
-          # Используем /repository/ и правильные имена папок
-          curl -v -u "${NEXUS_USER}:${NEXUS_PASS}" --upload-file ./backend.tar \
-            "${NEXUS_URL}/repository/${REPO_BACKEND}/${VERSION}/backend.tar"
-            
-          curl -v -u "${NEXUS_USER}:${NEXUS_PASS}" --upload-file ./frontend.tar \
-            "${NEXUS_URL}/repository/${REPO_FRONTEND}/${VERSION}/frontend.tar"
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Nexus
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.NEXUS_HOST }}
+          username: ${{ secrets.NEXUS_REPO_USER }}
+          password: ${{ secrets.NEXUS_REPO_PASS }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY_GHCR }}/nuoton/sandbox-${{ matrix.component }}
+            ${{ secrets.NEXUS_HOST }}/${{ matrix.component == 'backend' && env.NEXUS_REPO_BACKEND || env.NEXUS_REPO_FRONTEND }}/sandbox-${{ matrix.component }}
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push ${{ matrix.component }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/${{ matrix.component }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
-    needs: build-and-push
-    if: github.ref == 'refs/heads/lab3' || github.ref == 'refs/heads/main'
+    needs: [version, build]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -56,7 +108,10 @@ jobs:
       - name: Prepare .env
         run: |
           echo "${{ secrets.APP_ENV_FILE }}" > .env
-          echo "VERSION=${{ env.VERSION }}" >> .env
+          echo "IMAGE_REGISTRY=${{ secrets.NEXUS_HOST }}" >> .env
+          echo "IMAGE_TAG=${{ needs.version.outputs.version }}" >> .env
+          echo "REPOSITORY_BACKEND=${{ env.NEXUS_REPO_BACKEND }}" >> .env
+          echo "REPOSITORY_FRONTEND=${{ env.NEXUS_REPO_FRONTEND }}" >> .env
 
       - name: Copy files to VM
         run: |
@@ -66,16 +121,13 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             cd ~/app
-            export VERSION="${{ env.VERSION }}"
-            
-            sudo curl -u "${{ secrets.NEXUS_REPO_USER }}:${{ secrets.NEXUS_REPO_PASS }}" -o backend.tar "http://${{ secrets.NEXUS_HOST }}/repository/skorokhodov-backend-docker/${VERSION}/backend.tar"
-            sudo curl -u "${{ secrets.NEXUS_REPO_USER }}:${{ secrets.NEXUS_REPO_PASS }}" -o frontend.tar "http://${{ secrets.NEXUS_HOST }}/repository/skorokhodov-frontend-docker/${VERSION}/frontend.tar"
-            
-            sudo docker load -i backend.tar
-            sudo docker load -i frontend.tar
-            
-            sudo docker compose down
-            sudo docker compose up -d
-            
-            rm -f backend.tar frontend.tar
+            echo "${{ secrets.NEXUS_REPO_PASS }}" | sudo docker login ${{ secrets.NEXUS_HOST }} -u "${{ secrets.NEXUS_REPO_USER }}" --password-stdin
+            sudo docker compose pull
+            sudo docker compose up -d --remove-orphans
+            sudo docker image prune -f
           EOF
+
+      - name: Healthcheck
+        run: |
+          sleep 10
+          curl -f http://${{ secrets.VM_HOST }}:8888 || exit 1
