@@ -55,7 +55,7 @@ jobs:
           driver: docker-container
           buildkitd-config-inline: |
             [registry."${{ secrets.NEXUS_HOST }}"]
-              http = true
+            http = true
 
       - name: Login to GHCR
         uses: docker/login-action@v3
