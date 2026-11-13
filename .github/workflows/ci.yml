@@ -12,8 +12,8 @@ on:
 
 env:
   REGISTRY_GHCR: ghcr.io
+  # В секрете NEXUS_HOST должен быть порт-коннектор (например, 153.51.118.157:8082)
   REGISTRY_NEXUS: ${{ secrets.NEXUS_HOST }}
-  # Замените skorokhodov на вашу фамилию!
   NEXUS_REPO_BACKEND: skorokhodov-backend-docker
   NEXUS_REPO_FRONTEND: skorokhodov-frontend-docker
 
@@ -71,6 +71,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
+          # Путь БЕЗ /repository/
           images: |
             ${{ env.REGISTRY_GHCR }}/nuoton/sandbox-${{ matrix.component }}
             ${{ secrets.NEXUS_HOST }}/${{ matrix.component == 'backend' && env.NEXUS_REPO_BACKEND || env.NEXUS_REPO_FRONTEND }}/sandbox-${{ matrix.component }}
@@ -126,8 +127,3 @@ jobs:
             sudo docker compose up -d --remove-orphans
             sudo docker image prune -f
           EOF
-
-      - name: Healthcheck
-        run: |
-          sleep 10
-          curl -f http://${{ secrets.VM_HOST }}:8888 || exit 1

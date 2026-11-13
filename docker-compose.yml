@@ -1,5 +1,6 @@
 services:
   backend:
+    # Путь без /repository/
     image: ${IMAGE_REGISTRY}/${REPOSITORY_BACKEND}/sandbox-backend:${IMAGE_TAG}
     container_name: sandbox-backend
     networks:
@@ -11,6 +12,7 @@ services:
     restart: always
 
   frontend:
+    # Путь без /repository/
     image: ${IMAGE_REGISTRY}/${REPOSITORY_FRONTEND}/sandbox-frontend:${IMAGE_TAG}
     container_name: sandbox-frontend
     networks:
