@@ -1,7 +1,6 @@
 services:
   backend:
-    # Путь с /repository/ для Path-based routing
-    image: ${IMAGE_REGISTRY}/repository/${REPOSITORY_BACKEND}/sandbox-backend:${IMAGE_TAG}
+    image: sandbox-backend:${VERSION:-latest}
     container_name: sandbox-backend
     networks:
       - sandbox-net
@@ -12,8 +11,7 @@ services:
     restart: always
 
   frontend:
-    # Путь с /repository/ для Path-based routing
-    image: ${IMAGE_REGISTRY}/repository/${REPOSITORY_FRONTEND}/sandbox-frontend:${IMAGE_TAG}
+    image: sandbox-frontend:${VERSION:-latest}
     container_name: sandbox-frontend
     networks:
       - sandbox-net
