@@ -60,7 +60,7 @@ jobs:
           # Сборка
           docker build -t sandbox-backend:$VERSION ./src/backend
           
-          # Пуш в GHCR
+          # Пуш в GHCR (нижний регистр: nuoton)
           docker tag sandbox-backend:$VERSION ghcr.io/nuoton/sandbox-backend:$VERSION
           docker tag sandbox-backend:$VERSION ghcr.io/nuoton/sandbox-backend:sha-$SHA_SHORT
           docker push ghcr.io/nuoton/sandbox-backend:$VERSION
@@ -71,7 +71,7 @@ jobs:
             docker push ghcr.io/nuoton/sandbox-backend:latest
           fi
 
-          # Пуш в Nexus (добавлен /repository/)
+          # Пуш в Nexus (Path-based routing: /repository/)
           docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
           docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:sha-$SHA_SHORT
           docker push ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
@@ -112,7 +112,7 @@ jobs:
           # Сборка
           docker build -t sandbox-frontend:$VERSION ./src/frontend
           
-          # Пуш в GHCR
+          # Пуш в GHCR (нижний регистр: nuoton)
           docker tag sandbox-frontend:$VERSION ghcr.io/nuoton/sandbox-frontend:$VERSION
           docker tag sandbox-frontend:$VERSION ghcr.io/nuoton/sandbox-frontend:sha-$SHA_SHORT
           docker push ghcr.io/nuoton/sandbox-frontend:$VERSION
@@ -123,7 +123,7 @@ jobs:
             docker push ghcr.io/nuoton/sandbox-frontend:latest
           fi
 
-          # Пуш в Nexus (добавлен /repository/)
+          # Пуш в Nexus (Path-based routing: /repository/)
           docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
           docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:sha-$SHA_SHORT
           docker push ${{ secrets.NEXUS_HOST }}/repository/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
