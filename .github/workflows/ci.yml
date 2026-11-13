@@ -59,14 +59,14 @@ jobs:
           
           docker build -t sandbox-backend:$VERSION ./src/backend
           
-          docker tag sandbox-backend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-backend:$VERSION
-          docker tag sandbox-backend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-backend:sha-$SHA_SHORT
-          docker push ghcr.io/${{ github.repository_owner }}/sandbox-backend:$VERSION
-          docker push ghcr.io/${{ github.repository_owner }}/sandbox-backend:sha-$SHA_SHORT
+          docker tag sandbox-backend:$VERSION ghcr.io/nuoton/sandbox-backend:$VERSION
+          docker tag sandbox-backend:$VERSION ghcr.io/nuoton/sandbox-backend:sha-$SHA_SHORT
+          docker push ghcr.io/nuoton/sandbox-backend:$VERSION
+          docker push ghcr.io/nuoton/sandbox-backend:sha-$SHA_SHORT
           
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker tag sandbox-backend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-backend:latest
-            docker push ghcr.io/${{ github.repository_owner }}/sandbox-backend:latest
+            docker tag sandbox-backend:$VERSION ghcr.io/nuoton/sandbox-backend:latest
+            docker push ghcr.io/nuoton/sandbox-backend:latest
           fi
 
           docker tag sandbox-backend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_BACKEND }}/sandbox-backend:$VERSION
@@ -108,14 +108,14 @@ jobs:
           
           docker build -t sandbox-frontend:$VERSION ./src/frontend
           
-          docker tag sandbox-frontend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-frontend:$VERSION
-          docker tag sandbox-frontend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-frontend:sha-$SHA_SHORT
-          docker push ghcr.io/${{ github.repository_owner }}/sandbox-frontend:$VERSION
-          docker push ghcr.io/${{ github.repository_owner }}/sandbox-frontend:sha-$SHA_SHORT
+          docker tag sandbox-frontend:$VERSION ghcr.io/nuoton/sandbox-frontend:$VERSION
+          docker tag sandbox-frontend:$VERSION ghcr.io/nuoton/sandbox-frontend:sha-$SHA_SHORT
+          docker push ghcr.io/nuoton/sandbox-frontend:$VERSION
+          docker push ghcr.io/nuoton/sandbox-frontend:sha-$SHA_SHORT
           
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker tag sandbox-frontend:$VERSION ghcr.io/${{ github.repository_owner }}/sandbox-frontend:latest
-            docker push ghcr.io/${{ github.repository_owner }}/sandbox-frontend:latest
+            docker tag sandbox-frontend:$VERSION ghcr.io/nuoton/sandbox-frontend:latest
+            docker push ghcr.io/nuoton/sandbox-frontend:latest
           fi
 
           docker tag sandbox-frontend:$VERSION ${{ secrets.NEXUS_HOST }}/${{ env.NEXUS_REPO_FRONTEND }}/sandbox-frontend:$VERSION
