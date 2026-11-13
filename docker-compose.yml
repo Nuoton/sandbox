@@ -1,17 +1,28 @@
+services:
+  backend:
+    image: ${IMAGE_REGISTRY}/${REPOSITORY_BACKEND}/sandbox-backend:${IMAGE_TAG}
+    container_name: sandbox-backend
+    networks:
+      - sandbox-net
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    restart: always
+
+  frontend:
+    image: ${IMAGE_REGISTRY}/${REPOSITORY_FRONTEND}/sandbox-frontend:${IMAGE_TAG}
+    container_name: sandbox-frontend
+    networks:
+      - sandbox-net
+    ports:
+      - "8888:8888"
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    restart: always
 
 networks:
   sandbox-net:
     driver: bridge
-
-services:
-  backend:
-    image: ${IMAGE_REGISTRY}/${REPOSITORY_BACKEND}/sandbox-backend:${IMAGE_TAG}
-    ports: ["8081:8081"]
-    env_file: .env
-    restart: always
-  frontend:
-    image: ${IMAGE_REGISTRY}/${REPOSITORY_FRONTEND}/sandbox-frontend:${IMAGE_TAG}
-    ports: ["8888:8888"]
-    depends_on: [backend]
-    env_file: .env
-    restart: always
