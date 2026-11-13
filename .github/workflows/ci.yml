@@ -15,7 +15,6 @@ env:
   NEXUS_URL: "http://${{ secrets.NEXUS_HOST }}"
   NEXUS_USER: ${{ secrets.NEXUS_REPO_USER }}
   NEXUS_PASS: ${{ secrets.NEXUS_REPO_PASS }}
-  # ВАЖНО: Замените skorokhodov на вашу фамилию, если нужно
   REPO_BACKEND_RAW: skorokhodov-backend
   REPO_FRONTEND_RAW: skorokhodov-frontend
 
@@ -75,18 +74,14 @@ jobs:
             cd ~/app
             export VERSION="${{ env.VERSION }}"
             
-            # Скачиваем архивы из Nexus
             sudo curl -u "${{ secrets.NEXUS_REPO_USER }}:${{ secrets.NEXUS_REPO_PASS }}" -o backend.tar "http://${{ secrets.NEXUS_HOST }}/repository/skorokhodov-backend/${VERSION}/backend.tar"
             sudo curl -u "${{ secrets.NEXUS_REPO_USER }}:${{ secrets.NEXUS_REPO_PASS }}" -o frontend.tar "http://${{ secrets.NEXUS_HOST }}/repository/skorokhodov-frontend/${VERSION}/frontend.tar"
             
-            # Загружаем образы в Docker
             sudo docker load -i backend.tar
             sudo docker load -i frontend.tar
             
-            # Запускаем
             sudo docker compose down
             sudo docker compose up -d
             
-            # Убираем архивы
             rm -f backend.tar frontend.tar
           EOF
