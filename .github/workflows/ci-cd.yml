@@ -4,8 +4,6 @@ on:
   push:
     branches: [ "lab3" ]
 
-# Пункт 4: Ограничения и параллелизм
-# Если запустить новый пайплайн в ту же ветку, старый будет отменен
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,14 +17,11 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    # Пункт 4: Ограничение прав (только чтение кода и запись в packages)
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      # Пункт 5: Прогон модульных тестов (Go)
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -82,7 +77,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      # Исправление предупреждения: создаем known_hosts вручную
       - name: Setup SSH known_hosts
         run: |
           mkdir -p ~/.ssh
@@ -95,7 +89,6 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          # Убрали known_hosts из параметров, так как он теперь в файле
           script: |
             sed -i 's|NEXUS_URL=".*"|NEXUS_URL="http://${{ secrets.NEXUS_HOST }}:8081"|' ~/app/deploy-vm.sh
             export VERSION=${{ env.VERSION }}
