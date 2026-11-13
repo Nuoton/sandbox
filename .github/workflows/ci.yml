@@ -60,7 +60,7 @@ jobs:
 
       - name: Copy files to VM
         run: |
-          scp -i ~/.ssh/id_rsa docker-compose.yml .env deploy.sh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/app/
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" docker-compose.yml .env deploy.sh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/app/
 
       - name: Deploy
         run: |
