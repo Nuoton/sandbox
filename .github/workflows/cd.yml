@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       VERSION:
-        description: 'Версия образов для деплоя (например, 20261120-140000)'
+        description: 'Версия образов для деплоя (например, 20261120-140000 или latest)'
         required: true
         type: string
 
@@ -26,15 +26,27 @@ jobs:
           YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
           YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
         run: |
+          # Создаём файл ключа
           install -m 600 /dev/null "$RUNNER_TEMP/yc-sa-key.json"
           printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/yc-sa-key.json"
+          
+          # Скачиваем и устанавливаем yc
           curl -sL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          
+          # Добавляем yc в PATH для текущей сессии
+          export PATH=$PATH:/home/runner/yandex-cloud/bin
+          
+          # Настраиваем профиль
           yc config profile create ci
           yc config set service-account-key "$RUNNER_TEMP/yc-sa-key.json"
           yc config set folder-id "$YC_FOLDER_ID"
+          
+          # Проверяем, что yc работает
+          yc --version
 
       - name: Get kubeconfig
         run: |
+          export PATH=$PATH:/home/runner/yandex-cloud/bin
           mkdir -p ~/.kube
           yc managed-kubernetes cluster get-credentials cat5l8psvnrpugr0ibva --external --force
 
@@ -43,12 +55,14 @@ jobs:
 
       - name: Deploy
         run: |
+          export PATH=$PATH:/home/runner/yandex-cloud/bin
           helm upgrade --install sandbox ./helm/sandbox -n sandbox \
             --set image.tag=${{ inputs.VERSION }} \
             --wait --timeout 5m
 
       - name: Verify
         run: |
+          export PATH=$PATH:/home/runner/yandex-cloud/bin
           kubectl get pods,svc -n sandbox
           kubectl rollout status deploy/sandbox-backend -n sandbox
           kubectl rollout status deploy/sandbox-frontend -n sandbox
