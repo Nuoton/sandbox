@@ -5,7 +5,7 @@ on:
     branches: [main, lab3]
     paths:
       - "src/**"
-      - ".github/workflows/ci.yml"   # ← было build.yml
+      - ".github/workflows/ci.yml"
       - "docker-compose.yml"
       - "deploy.sh"
   workflow_dispatch:
@@ -48,20 +48,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [backend, frontend]   # nexus_repo больше не нужен
+        service: [backend, frontend]
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - name: Получить код
         uses: actions/checkout@v4
 
-      # хаки с insecure-registries/daemon.json удалены — GHCR работает только по HTTPS
       - name: Вход в ghcr.io
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}   # PAT для сборки не нужен
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Сборка и публикация
         run: |
@@ -72,7 +71,7 @@ jobs:
           [ "$GITHUB_REF" = "refs/heads/main" ] && TAGS="$TAGS latest"
           ARGS=""
           for t in $TAGS; do ARGS="$ARGS -t $IMAGE:$t"; done
-          docker build --target runtime --push \
+          docker build --push \
             --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --label "org.opencontainers.image.version=$VERSION" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
@@ -113,7 +112,6 @@ jobs:
           APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          # вырезаем старые nexus-строки из секрета, если они там остались
           printf '%s\n' "$APP_ENV_FILE" | tr -d '\r' \
             | grep -vE '^(IMAGE_REGISTRY|IMAGE_TAG|VERSION|REPOSITORY_BACKEND|REPOSITORY_FRONTEND)=' > .env || true
           {
@@ -134,5 +132,4 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GHCR_PAT }}
         run: |
-          # deploy.sh читает пароль из stdin и REGISTRY_USER из env — трогать его не нужно
           printf '%s' "$GHCR_TOKEN" | ssh vm "REGISTRY_USER='$GHCR_USER' sh ~/$APP_DIR/deploy.sh"
