@@ -1,135 +1,48 @@
-name: ci
+name: CI
 
 on:
   push:
-    branches: [main, lab3]
-    paths:
-      - "src/**"
-      - ".github/workflows/ci.yml"
-      - "docker-compose.yml"
-      - "deploy.sh"
-  workflow_dispatch:
-    inputs:
-      VERSION:
-        description: "Версия для повторного деплоя или отката. Пусто — собрать новую."
-        required: false
-        type: string
+    branches: [main, lr4]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
   packages: write
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.v.outputs.version }}
+      VERSION: ${{ steps.ver.outputs.VERSION }}
+      OWNER: ${{ steps.ver.outputs.OWNER }}
     steps:
-      - id: v
-        env:
-          INPUT_VERSION: ${{ inputs.VERSION }}
+      - name: Generate version
+        id: ver
         run: |
-          if [ -n "$INPUT_VERSION" ]; then
-            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
-            echo "Повторный деплой версии **$INPUT_VERSION**" >> "$GITHUB_STEP_SUMMARY"
-          else
-            VERSION=$(date -u +%Y%m%d-%H%M%S)
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "Версия сборки: **$VERSION**" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "VERSION=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          echo "OWNER=$(echo '${{ github.actor }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
   build:
-    needs: version
+    needs: [version]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        service: [backend, frontend]
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
+        component: [backend, frontend]
     steps:
-      - name: Получить код
-        uses: actions/checkout@v4
-
-      - name: Вход в ghcr.io
+      - uses: actions/checkout@v4
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Сборка и публикация
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE="ghcr.io/$OWNER/sandbox-${{ matrix.service }}"
-          SHA_TAG="sha-${GITHUB_SHA::7}"
-          TAGS="$VERSION $SHA_TAG"
-          [ "$GITHUB_REF" = "refs/heads/main" ] && TAGS="$TAGS latest"
-          ARGS=""
-          for t in $TAGS; do ARGS="$ARGS -t $IMAGE:$t"; done
-          docker build --push \
-            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
-            --label "org.opencontainers.image.version=$VERSION" \
-            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
-            $ARGS \
-            "src/${{ matrix.service }}"
-
-  deploy:
-    needs: [version, build]
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    environment: production
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
-      APP_DIR: sandbox
-    steps:
-      - name: Получить код
-        uses: actions/checkout@v4
-
-      - name: Настроить SSH
-        env:
-          VM_HOST: ${{ secrets.VM_HOST }}
-          VM_USER: ${{ secrets.VM_USER }}
-          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
-          VM_SSH_KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$VM_SSH_KEY" | tr -d '\r' > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          printf '%s\n' "$VM_SSH_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
-          printf 'Host vm\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n  StrictHostKeyChecking yes\n' \
-            "$VM_HOST" "$VM_USER" > ~/.ssh/config
-
-      - name: Сформировать .env
-        env:
-          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          printf '%s\n' "$APP_ENV_FILE" | tr -d '\r' \
-            | grep -vE '^(IMAGE_REGISTRY|IMAGE_TAG|VERSION|REPOSITORY_BACKEND|REPOSITORY_FRONTEND)=' > .env || true
-          {
-            echo "IMAGE_REGISTRY=ghcr.io"
-            echo "REPOSITORY_BACKEND=ghcr.io/$OWNER/sandbox-backend"
-            echo "REPOSITORY_FRONTEND=ghcr.io/$OWNER/sandbox-frontend"
-            echo "IMAGE_TAG=$VERSION"
-            echo "VERSION=$VERSION"
-          } >> .env
-
-      - name: Скопировать файлы на VM
-        run: |
-          ssh vm "mkdir -p ~/$APP_DIR"
-          scp docker-compose.yml .env deploy.sh vm:~/$APP_DIR/
-
-      - name: Развернуть и проверить
-        env:
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GHCR_PAT }}
-        run: |
-          printf '%s' "$GHCR_TOKEN" | ssh vm "REGISTRY_USER='$GHCR_USER' sh ~/$APP_DIR/deploy.sh"
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: src/${{ matrix.component }}
+          push: true
+          tags: |
+            ghcr.io/${{ needs.version.outputs.OWNER }}/sandbox-${{ matrix.component }}:${{ needs.version.outputs.VERSION }}
+            ghcr.io/${{ needs.version.outputs.OWNER }}/sandbox-${{ matrix.component }}:latest
