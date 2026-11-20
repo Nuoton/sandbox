@@ -13,3 +13,4 @@ dist/
 # Dev Container и системные файлы
 .DS_Store
 *.tar
+kubectl
