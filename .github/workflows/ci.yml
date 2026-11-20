@@ -11,15 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       VERSION: ${{ steps.ver.outputs.VERSION }}
+      OWNER: ${{ steps.ver.outputs.OWNER }}
     steps:
       - name: Generate version
         id: ver
-        run: echo "VERSION=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+        run: |
+          echo "VERSION=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          echo "OWNER=$(echo '${{ github.actor }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
   build:
     needs: [version]
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         component: [backend, frontend]
     steps:
@@ -36,5 +40,5 @@ jobs:
           context: src/${{ matrix.component }}
           push: true
           tags: |
-            ghcr.io/${{ github.actor }}/sandbox-${{ matrix.component }}:${{ needs.version.outputs.VERSION }}
-            ghcr.io/${{ github.actor }}/sandbox-${{ matrix.component }}:latest
+            ghcr.io/${{ needs.version.outputs.OWNER }}/sandbox-${{ matrix.component }}:${{ needs.version.outputs.VERSION }}
+            ghcr.io/${{ needs.version.outputs.OWNER }}/sandbox-${{ matrix.component }}:latest
