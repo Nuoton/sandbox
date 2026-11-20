@@ -14,3 +14,4 @@ dist/
 .DS_Store
 *.tar
 kubectl
+yc-sa-key.json

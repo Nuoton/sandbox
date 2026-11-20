@@ -1,0 +1,55 @@
+name: CD (Kubernetes)
+
+on:
+  workflow_dispatch:
+    inputs:
+      VERSION:
+        description: 'Версия образов для деплоя (например, 20261120-140000)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-k8s
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure yc
+        env:
+          YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/yc-sa-key.json"
+          printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/yc-sa-key.json"
+          curl -sL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          yc config profile create ci
+          yc config set service-account-key "$RUNNER_TEMP/yc-sa-key.json"
+          yc config set folder-id "$YC_FOLDER_ID"
+
+      - name: Get kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          yc managed-kubernetes cluster get-credentials cat5l8psvnrpugr0ibva --external --force
+
+      - name: Install Helm
+        run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Deploy
+        run: |
+          helm upgrade --install sandbox ./helm/sandbox -n sandbox \
+            --set image.tag=${{ inputs.VERSION }} \
+            --wait --timeout 5m
+
+      - name: Verify
+        run: |
+          kubectl get pods,svc -n sandbox
+          kubectl rollout status deploy/sandbox-backend -n sandbox
+          kubectl rollout status deploy/sandbox-frontend -n sandbox
