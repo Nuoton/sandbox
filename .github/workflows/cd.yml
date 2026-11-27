@@ -27,28 +27,27 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Берем код из того коммита, который запустил CI (если это автоматический запуск)
+          # Или текущий коммит (если запуск ручной)
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure yc
         env:
           YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
           YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
         run: |
-          # Создаём файл ключа
           install -m 600 /dev/null "$RUNNER_TEMP/yc-sa-key.json"
           printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/yc-sa-key.json"
           
-          # Скачиваем и устанавливаем yc
           curl -sL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
           
-          # Добавляем yc в PATH для текущей сессии
           export PATH=$PATH:/home/runner/yandex-cloud/bin
           
-          # Настраиваем профиль
           yc config profile create ci
           yc config set service-account-key "$RUNNER_TEMP/yc-sa-key.json"
           yc config set folder-id "$YC_FOLDER_ID"
-          
-          # Проверяем, что yc работает
+
           yc --version
 
       - name: Get kubeconfig
