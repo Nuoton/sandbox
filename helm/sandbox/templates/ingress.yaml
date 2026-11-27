@@ -10,11 +10,40 @@ spec:
   tls:
     - hosts:
         - {{ .Values.ingress.host }}
-      secretName: sandbox-tls 
+      secretName: sandbox-tls
   rules:
     - host: {{ .Values.ingress.host }}
       http:
         paths:
+          - path: /products
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+          - path: /categories
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+          - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+          - path: /orders
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+
           - path: /
             pathType: Prefix
             backend:
