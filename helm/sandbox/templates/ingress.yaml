@@ -1,12 +1,16 @@
-{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: sandbox-ingress
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true" 
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+      secretName: sandbox-tls 
   rules:
     - host: {{ .Values.ingress.host }}
       http:
@@ -18,4 +22,3 @@ spec:
                 name: sandbox-frontend
                 port:
                   number: {{ .Values.ports.frontend }}
-{{- end }}
