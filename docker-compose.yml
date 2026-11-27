@@ -1,22 +1,60 @@
 services:
   backend:
-    image: ${REPOSITORY_BACKEND}:${IMAGE_TAG}
+    # image: "${REGISTRY}${BACKEND_IMAGE}:${IMAGE_TAG:-latest}" # Можно закомментировать или удалить
     container_name: sandbox-backend
-    env_file: .env
-    networks: [ sandbox-net ]
-    restart: unless-stopped
-    ports: [ "8081:8081" ]
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    networks:
+      - sandbox
+    expose:
+      - "8081"
+    depends_on:
+      postgres:
+        condition: service_healthy  
+    healthcheck:
+      test: curl --fail -s http://localhost:8081/products
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 6
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: sandbox-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - sandbox
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
-    image: ${REPOSITORY_FRONTEND}:${IMAGE_TAG}
+    # image: "${REGISTRY}${FRONTEND_IMAGE}:${IMAGE_TAG:-latest}" # Можно закомментировать или удалить
     container_name: sandbox-frontend
-    env_file: .env
-    ports: [ "8888:8888" ]
-    depends_on: [ backend ]
-    networks: [ sandbox-net ]
-    restart: unless-stopped
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    networks:
+      - sandbox 
+    ports:
+      - "8889:8888"
+    depends_on:
+      - backend
 
 networks:
-  sandbox-net:
-    name: sandbox-net
-    driver: bridge
+  sandbox:
+
+volumes:
+  postgres-data:

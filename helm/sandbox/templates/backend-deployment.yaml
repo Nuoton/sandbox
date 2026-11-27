@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app: sandbox-backend
+      annotations:
+        date: {{ .Values.podAnnotations.date | quote }}
     spec:
       containers:
         - name: backend
@@ -21,5 +23,12 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.ports.backend }}
+
+          env:
+            {{- range $key, $value := .Values.backendEnv }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

@@ -8,6 +8,22 @@ ports:
   frontend: 8888
   nodePort: 30080
 
+podAnnotations: {}
+
 resources:
   requests: { cpu: 100m, memory: 128Mi }
   limits:   { cpu: 500m, memory: 512Mi }
+
+backendEnv:
+  DB_ENABLED: "true"
+  DB_HOST: "postgres-postgresql"
+  DB_PORT: "5432"
+  DB_USER: "postgres"
+  DB_PASSWORD: "postgres"
+  DB_NAME: "postgres"
+  DB_SSLMODE: "disable"
+
+ingress:
+  enabled: true
+  host: "oton.space" 
+  className: "nginx"

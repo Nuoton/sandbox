@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sandbox-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true" 
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+      secretName: sandbox-tls
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /products
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+          - path: /categories
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+          - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+          - path: /orders
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-backend
+                port:
+                  number: {{ .Values.ports.backend }}
+
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-frontend
+                port:
+                  number: {{ .Values.ports.frontend }}
