@@ -1,9 +1,12 @@
 name: CD (Kubernetes)
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches:
-      - lab5 
+      - lab5
   workflow_dispatch:
     inputs:
       VERSION:
@@ -21,6 +24,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,9 +63,10 @@ jobs:
       - name: Deploy
         run: |
           export PATH=$PATH:/home/runner/yandex-cloud/bin
+          DATE_TAG=$(date +%s)
           helm upgrade --install sandbox ./helm/sandbox -n sandbox \
-          --set image.tag=${{ github.event_name == 'push' && 'latest' || inputs.VERSION }} \
-          --set-string podAnnotations.date=$(date +%s)
+            --set image.tag=${{ github.event_name == 'push' && 'latest' || inputs.VERSION }} \
+            --set-string podAnnotations.date=$DATE_TAG \
             --wait --timeout 5m
 
       - name: Verify
