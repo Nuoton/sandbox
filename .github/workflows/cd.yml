@@ -1,12 +1,12 @@
 name: CD (Kubernetes)
 
 on:
-  workflow_call: # <--- Позволяет вызывать этот воркфлоу из других
-    inputs:
-      VERSION:
-        required: false
-        type: string
-        default: 'latest'
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - '**' 
   workflow_dispatch:
     inputs:
       VERSION:
@@ -65,7 +65,7 @@ jobs:
           export PATH=$PATH:/home/runner/yandex-cloud/bin
           DATE_TAG=$(date +%s)
           helm upgrade --install sandbox ./helm/sandbox -n sandbox \
-            --set image.tag=${{ inputs.VERSION }} \
+            --set image.tag=${{ inputs.VERSION || 'latest' }} \
             --set-string podAnnotations.date=$DATE_TAG \
             --wait --timeout 5m
 
