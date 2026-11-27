@@ -28,8 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Берем код из того коммита, который запустил CI (если это автоматический запуск)
-          # Или текущий коммит (если запуск ручной)
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure yc
@@ -54,7 +52,8 @@ jobs:
         run: |
           export PATH=$PATH:/home/runner/yandex-cloud/bin
           mkdir -p ~/.kube
-          yc managed-kubernetes cluster get-credentials cat5l8psvnrpugr0ibva --external --force
+          yc managed-kubernetes cluster get-credentials cat5l8psvnrpugr0ibva --external --force --folder-id ${{ secrets.YC_FOLDER_ID }}
+          kubectl cluster-info
 
       - name: Install Helm
         run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
