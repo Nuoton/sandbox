@@ -21,5 +21,12 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.ports.backend }}
+
+          env:
+            {{- range $key, $value := .Values.backendEnv }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

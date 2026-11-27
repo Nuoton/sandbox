@@ -3,11 +3,10 @@ kind: Service
 metadata:
   name: sandbox-frontend
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: sandbox-frontend
   ports:
     - name: http
       port: {{ .Values.ports.frontend }}
       targetPort: http
-      nodePort: {{ .Values.ports.nodePort }}

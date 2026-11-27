@@ -1,10 +1,13 @@
 name: CD (Kubernetes)
 
 on:
+  push:
+    branches:
+      - lab5 
   workflow_dispatch:
     inputs:
       VERSION:
-        description: 'Версия образов для деплоя (например, 20261120-140000 или latest)'
+        description: 'Версия образов (например, 20261120-140000 или latest)'
         required: true
         type: string
 
@@ -57,7 +60,7 @@ jobs:
         run: |
           export PATH=$PATH:/home/runner/yandex-cloud/bin
           helm upgrade --install sandbox ./helm/sandbox -n sandbox \
-            --set image.tag=${{ inputs.VERSION }} \
+          --set image.tag=${{ github.event_name == 'push' && 'latest' || inputs.VERSION }} \
             --wait --timeout 5m
 
       - name: Verify
