@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app: sandbox-frontend
+      annotations: 
+        date: {{ .Values.podAnnotations.date | quote }}
     spec:
       containers:
         - name: frontend
