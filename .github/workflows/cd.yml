@@ -61,6 +61,7 @@ jobs:
           export PATH=$PATH:/home/runner/yandex-cloud/bin
           helm upgrade --install sandbox ./helm/sandbox -n sandbox \
           --set image.tag=${{ github.event_name == 'push' && 'latest' || inputs.VERSION }} \
+          --set-string podAnnotations.date=$(date +%s)
             --wait --timeout 5m
 
       - name: Verify
