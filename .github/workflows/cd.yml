@@ -1,16 +1,16 @@
 name: CD (Kubernetes)
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches:
-      - lab5
+  workflow_call: # <--- Позволяет вызывать этот воркфлоу из других
+    inputs:
+      VERSION:
+        required: false
+        type: string
+        default: 'latest'
   workflow_dispatch:
     inputs:
       VERSION:
-        description: 'Версия образов (например, 20261120-140000 или latest)'
+        description: 'Версия образов'
         required: true
         type: string
 
@@ -65,7 +65,7 @@ jobs:
           export PATH=$PATH:/home/runner/yandex-cloud/bin
           DATE_TAG=$(date +%s)
           helm upgrade --install sandbox ./helm/sandbox -n sandbox \
-            --set image.tag=${{ github.event_name == 'push' && 'latest' || inputs.VERSION }} \
+            --set image.tag=${{ inputs.VERSION }} \
             --set-string podAnnotations.date=$DATE_TAG \
             --wait --timeout 5m
 

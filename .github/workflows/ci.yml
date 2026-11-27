@@ -46,3 +46,10 @@ jobs:
           tags: |
             ghcr.io/${{ needs.version.outputs.OWNER }}/sandbox-${{ matrix.component }}:${{ needs.version.outputs.VERSION }}
             ghcr.io/${{ needs.version.outputs.OWNER }}/sandbox-${{ matrix.component }}:latest
+
+  deploy:
+    needs: build 
+    uses: ./.github/workflows/cd.yml 
+    with:
+      VERSION: latest 
+    secrets: inherit 
